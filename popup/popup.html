@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube AI Summary Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <img src="../assets/icon48.svg" alt="YouTube AI Summary Logo">
+        <div>
+          <h1>YouTube Summary</h1>
+          <span class="version">v1.1.0</span>
+        </div>
+      </div>
+    </header>
+
+    <nav>
+      <ul>
+        <li class="active" data-tab="prompt-settings">Prompt Settings</li>
+        <li data-tab="general-settings">General Settings</li>
+        <li data-tab="contact">Contact Us</li>
+      </ul>
+    </nav>
+
+    <main>
+      <!-- Prompt Settings Tab -->
+      <section id="prompt-settings" class="tab-content active">
+        <div class="checkbox-setting">
+          <input type="checkbox" id="auto-paste" checked>
+          <label for="auto-paste">Auto-paste transcript to AI chat</label>
+          <div class="help-tip" title="When enabled, the transcript is automatically pasted into the AI chat interface">?</div>
+        </div>
+
+        <h2>Customize Prompt</h2>
+        <p>Customize how your transcript is presented to the AI model:</p>
+        <textarea id="prompt-template" rows="10" placeholder="Please summarize the following video transcript...
+
+Title: {title}
+URL: {url}
+Transcript: {transcript}"></textarea>
+        <p class="note">* Use {title}, {url}, and {transcript} as placeholders for video information.</p>
+        
+        <div class="preset-prompts">
+          <h3>Prompt Templates</h3>
+          <div class="preset-grid">
+            <button class="preset-btn" data-preset="summary">Summary</button>
+            <button class="preset-btn" data-preset="bullets">Bullet Points</button>
+            <button class="preset-btn" data-preset="questions">Key Questions</button>
+            <button class="preset-btn" data-preset="steps">Step-by-Step</button>
+            <button class="preset-btn" data-preset="study_notes">Study Notes</button>
+            <button class="preset-btn" data-preset="explanation">Simple Explanation</button>
+            <button class="preset-btn" data-preset="timeline">Timeline</button>
+            <button class="preset-btn" data-preset="debate">Debate Analysis</button>
+            <button class="preset-btn" data-preset="technical">Technical Details</button>
+            <button class="preset-btn" data-preset="research">Research Summary</button>
+            <button class="preset-btn" data-preset="product_review">Product Review</button>
+            <button class="preset-btn highlight" data-preset="custom">Custom Template</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- General Settings Tab -->
+      <section id="general-settings" class="tab-content">
+        <h2>Default AI Model</h2>
+        <p>Select which AI model button appears first in the dropdown:</p>
+        <div class="model-options compact">
+          <button class="model-btn" data-model="chatgpt">
+            <span class="icon">🤖</span> ChatGPT
+          </button>
+          <button class="model-btn" data-model="claude">
+            <span class="icon">🧠</span> Claude
+          </button>
+          <button class="model-btn" data-model="gemini">
+            <span class="icon">✨</span> Gemini
+          </button>
+          <button class="model-btn" data-model="deepseek">
+            <span class="icon">🔍</span> DeepSeek
+          </button>
+        </div>
+        
+        <h2>Language</h2>
+        <select id="language">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+        </select>
+        <p class="note">* This is only for prompt language</p>
+
+        <h2>Appearance</h2>
+        <div class="checkbox-setting">
+          <input type="checkbox" id="dark-mode">
+          <label for="dark-mode">Dark Mode</label>
+        </div>
+      </section>
+
+      <!-- Contact Tab -->
+      <section id="contact" class="tab-content">
+        <h2>Contact Us</h2>
+        <p>Have feedback or need help? Reach out to us:</p>
+        <a href="https://github.com/yourusername/youtube-ai-summary" target="_blank" class="contact-link">
+          <span class="icon">📂</span> GitHub Repository
+        </a>
+        <a href="mailto:youremail@example.com" class="contact-link">
+          <span class="icon">📧</span> Email Support
+        </a>
+      </section>
+    </main>
+
+    <footer>
+      <a href="#" id="write-review">Write a Review ✍️</a>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 

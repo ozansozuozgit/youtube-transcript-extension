@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube AI Summary",
+  "version": "1.1.0",
+  "description": "Summarize YouTube videos using your preferred AI chatbot",
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "storage",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://*.openai.com/*",
+    "https://*.anthropic.com/*",
+    "https://*.claude.ai/*",
+    "https://*.gemini.google.com/*",
+    "https://*.deepseek.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/watch*", 
+        "https://www.youtube.com/shorts/*",
+        "https://*.youtube.com/watch*",
+        "https://*.youtube.com/shorts/*"
+      ],
+      "js": ["contentScript.js"],
+      "css": ["css/styles.css"]
+    },
+    {
+      "matches": [
+        "https://*.openai.com/*",
+        "https://*.anthropic.com/*",
+        "https://*.claude.ai/*",
+        "https://*.gemini.google.com/*",
+        "https://*.deepseek.com/*"
+      ],
+      "js": ["aiSitesContentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "assets/icon16.svg",
+    "48": "assets/icon48.svg",
+    "128": "assets/icon128.svg"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon16.svg",
+      "48": "assets/icon48.svg",
+      "128": "assets/icon128.svg"
+    }
+  }
+} 

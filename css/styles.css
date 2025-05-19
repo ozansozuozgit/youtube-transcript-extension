@@ -1,0 +1,292 @@
+/**
+ * YouTube AI Summary Extension - CSS Styles
+ */
+
+/* Container for button and dropdown */
+.yt-ai-summary-container {
+  position: relative;
+  display: inline-flex;
+  margin-bottom: 12px;
+  margin-top: 4px;
+  z-index: 2000; /* Ensure it appears above other YouTube elements */
+}
+
+/* Different positioning for YouTube Shorts */
+.is-shorts .yt-ai-summary-container {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  margin: 0;
+  z-index: 3000;
+}
+
+/* Positioning for regular YouTube when positioned near title */
+.ytd-watch-metadata .yt-ai-summary-container,
+#title .yt-ai-summary-container,
+.title .yt-ai-summary-container {
+  display: inline-flex;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+/* Summarize button */
+.yt-ai-summary-button {
+  background-color: #cc0000;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.yt-ai-summary-button:hover {
+  background-color: #990000;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Different style for YouTube Shorts */
+.is-shorts .yt-ai-summary-button {
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  background-color: rgba(204, 0, 0, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dropdown styles */
+.yt-ai-summary-dropdown {
+  position: absolute;
+  display: none;
+  z-index: 2000;
+  min-width: 180px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  margin-top: 5px;
+  right: -30px;
+  top: 100%; /* Position below the button */
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+
+/* Different positioning for Shorts */
+.is-shorts .yt-ai-summary-dropdown {
+  right: 0;
+  top: 40px;
+  min-width: 200px;
+}
+
+/* Show the dropdown when .show class is added */
+.yt-ai-summary-dropdown.show {
+  display: block;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.yt-ai-summary-dropdown-content {
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.yt-ai-summary-provider-btn {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  color: #333;
+  font-weight: 500;
+  margin: 2px 0;
+  white-space: nowrap;
+}
+
+/* Provider-specific colors */
+.yt-ai-summary-provider-btn[data-provider="chatgpt"] {
+  border-left: 3px solid #19c37d;
+}
+
+.yt-ai-summary-provider-btn[data-provider="claude"] {
+  border-left: 3px solid #9847ff;
+}
+
+.yt-ai-summary-provider-btn[data-provider="gemini"] {
+  border-left: 3px solid #4285f4;
+}
+
+.yt-ai-summary-provider-btn[data-provider="deepseek"] {
+  border-left: 3px solid #ff5c00;
+}
+
+.yt-ai-summary-provider-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.yt-ai-summary-provider-btn:before {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.yt-ai-summary-provider-btn[data-provider="chatgpt"]:before {
+  content: '🤖';
+}
+
+.yt-ai-summary-provider-btn[data-provider="claude"]:before {
+  content: '🧠';
+}
+
+.yt-ai-summary-provider-btn[data-provider="gemini"]:before {
+  content: '✨';
+}
+
+.yt-ai-summary-provider-btn[data-provider="deepseek"]:before {
+  content: '🔍';
+}
+
+/* Loading indicator */
+.yt-ai-summary-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.yt-ai-summary-loader-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.yt-ai-summary-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #cc0000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Notification styles */
+.yt-ai-summary-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  min-width: 300px;
+  max-width: 400px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.yt-ai-summary-notification-content {
+  padding: 16px;
+}
+
+.yt-ai-summary-notification-content p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Notification types */
+.yt-ai-summary-notification.success {
+  border-left: 4px solid #4CAF50;
+}
+
+.yt-ai-summary-notification.error {
+  border-left: 4px solid #F44336;
+}
+
+.yt-ai-summary-notification.info {
+  border-left: 4px solid #2196F3;
+}
+
+/* Dark mode support */
+html[dark] .yt-ai-summary-dropdown,
+html[dark] .yt-ai-summary-loader-content,
+html[dark] .yt-ai-summary-notification {
+  background-color: #212121;
+  color: #fff;
+  border-color: #444;
+}
+
+html[dark] .yt-ai-summary-provider-btn {
+  color: #e0e0e0;
+}
+
+html[dark] .yt-ai-summary-provider-btn:hover {
+  background-color: #3f3f3f;
+}
+
+/* Adapt to YouTube's dark mode too */
+[dark-theme-enabled] .yt-ai-summary-dropdown,
+[dark-theme-enabled] .yt-ai-summary-loader-content,
+[dark-theme-enabled] .yt-ai-summary-notification {
+  background-color: #212121;
+  color: #fff;
+  border-color: #444;
+}
+
+[dark-theme-enabled] .yt-ai-summary-provider-btn {
+  color: #e0e0e0;
+}
+
+[dark-theme-enabled] .yt-ai-summary-provider-btn:hover {
+  background-color: #3f3f3f;
+} 
