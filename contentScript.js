@@ -1,6 +1,8 @@
 /**
  * YouTube AI Summary Extension - Content Script
  * Injects summarize button on YouTube video pages and extracts transcripts
+ * 
+ * Updated: Enhanced DOM detection and error handling for Chrome 137+ compatibility
  */
 
 // AI providers configuration
@@ -54,9 +56,14 @@ let appSettings = {
   promptTemplate: DEFAULT_PROMPT_TEMPLATE
 };
 
+// Enhanced logging for debugging
+function debugLog(message, data = null) {
+  console.log(`[YT-AI-Summary Content] ${message}`, data || '');
+}
+
 // Main function that runs when the script is loaded
 (async function() {
-  console.log("YouTube AI Summary: Content script loaded.");
+  debugLog("Content script loaded");
   await loadSettings();
   
   // Listen for settings changes
@@ -65,7 +72,7 @@ let appSettings = {
       const newSettings = changes.settings.newValue;
       if (newSettings) {
         appSettings = { ...appSettings, ...newSettings };
-        console.log("YouTube AI Summary: Settings updated", appSettings);
+        debugLog("Settings updated", appSettings);
       }
     }
   });
@@ -75,6 +82,7 @@ let appSettings = {
   const observer = new MutationObserver(() => {
     // Handle both regular YouTube and YouTube Shorts
     if (!buttonAdded && (isVideoPage() || isShortsPage())) {
+      debugLog("Video page detected, adding button");
       addSummarizeButton();
       buttonAdded = true;
     }
@@ -88,6 +96,7 @@ let appSettings = {
   observer.observe(document.body, { childList: true, subtree: true });
   
   if (isVideoPage() || isShortsPage()) {
+    debugLog("Initial video page detected");
     addSummarizeButton();
     buttonAdded = true;
   }
@@ -146,54 +155,83 @@ function updateButtonForPageType() {
 }
 
 function addSummarizeButton() {
-  console.log("YouTube AI Summary: Adding summarize button...");
+  debugLog("Adding summarize button...");
   
   // Different container depending on whether it's a regular video or shorts
   let menuContainer;
   
   if (isShortsPage()) {
-    // For Shorts, we'll add it to the player
-    menuContainer = document.querySelector('#shorts-player') || 
-                    document.querySelector('.shorts-player') ||
-                    document.querySelector('#shorts-container') ||
-                    document.querySelector('#shorts-inner-buttons') ||
-                    document.querySelector('#shorts-actions'); // Modern YT Shorts
+    // Enhanced selectors for YouTube Shorts (2024+ layout)
+    const shortsSelectors = [
+      '#shorts-player',
+      '.shorts-player', 
+      '#shorts-container',
+      '#shorts-inner-buttons',
+      '#shorts-actions',
+      '.shorts-action-bar',
+      '.reel-player-overlay-actions',
+      '[id*="shorts"]',
+      '.ytd-shorts',
+      '#actions.ytd-reel-video-renderer'
+    ];
     
-    // If still not found, try finding the buttons bar
-    if (!menuContainer) {
-      const actionBars = document.querySelectorAll('.shorts-action-bar, .reel-player-overlay-actions');
-      if (actionBars.length > 0) {
-        menuContainer = actionBars[0];
+    for (const selector of shortsSelectors) {
+      menuContainer = document.querySelector(selector);
+      if (menuContainer) {
+        debugLog(`Found shorts container with selector: ${selector}`);
+        break;
       }
     }
     
-    console.log("YouTube AI Summary: Shorts page detected");
+    debugLog("Shorts page detected");
   } else {
-    // For regular videos - try various selectors for different YouTube layouts
-    // Try to place the button above the action buttons
-    menuContainer = document.querySelector('#above-the-fold') || 
-                    document.querySelector('#top-level-buttons-computed') ||
-                    document.querySelector('.ytd-watch-metadata') ||
-                    document.querySelector('#title h1') ||
-                    document.querySelector('.title.ytd-video-primary-info-renderer') ||
-                    // Fallbacks to original locations
-                    document.querySelector('#above-the-fold #top-row') || 
-                    document.querySelector('#top-row') ||
-                    document.querySelector('#menu-container #top-row') || 
-                    document.querySelector('#menu.ytd-video-primary-info-renderer') ||
-                    document.querySelector('ytd-menu-renderer.ytd-watch-metadata') ||
-                    document.querySelector('#actions-inner, #actions') ||
-                    document.querySelector('.ytd-watch-metadata #actions'); // Modern YT layout
+    // Enhanced selectors for regular YouTube videos (2024+ layout)
+    const videoSelectors = [
+      '#above-the-fold',
+      '#top-level-buttons-computed',
+      '.ytd-watch-metadata',
+      '#title h1',
+      '.title.ytd-video-primary-info-renderer',
+      '#above-the-fold #top-row',
+      '#top-row',
+      '#menu-container #top-row',
+      '#menu.ytd-video-primary-info-renderer',
+      'ytd-menu-renderer.ytd-watch-metadata',
+      '#actions-inner',
+      '#actions',
+      '.ytd-watch-metadata #actions',
+      '#owner.ytd-watch-metadata', // Try placing near channel info
+      '.ytd-video-primary-info-renderer #container',
+      '#info.ytd-watch-flexy' // Modern layout
+    ];
+    
+    for (const selector of videoSelectors) {
+      menuContainer = document.querySelector(selector);
+      if (menuContainer) {
+        debugLog(`Found video container with selector: ${selector}`);
+        break;
+      }
+    }
   }
   
   if (!menuContainer) {
-    console.warn('YouTube AI Summary: Could not find menu container to add button. Retrying in 2s.');
-    setTimeout(addSummarizeButton, 2000); // Retry if container not found initially
+    debugLog('Could not find menu container. Available elements:', {
+      hasAboveFold: !!document.querySelector('#above-the-fold'),
+      hasTopRow: !!document.querySelector('#top-row'),
+      hasActions: !!document.querySelector('#actions'),
+      hasWatchMetadata: !!document.querySelector('.ytd-watch-metadata')
+    });
+    
+    // Retry with a longer delay
+    setTimeout(() => {
+      debugLog('Retrying button placement...');
+      addSummarizeButton();
+    }, 3000);
     return;
   }
   
   if (document.getElementById('yt-ai-summary-button')) {
-    console.log("YouTube AI Summary: Button already exists.");
+    debugLog("Button already exists");
     updateButtonForPageType(); // Make sure it has the right styling
     return; // Already added
   }
@@ -264,45 +302,121 @@ function addSummarizeButton() {
 }
 
 async function extractAndSummarize(aiProviderKey) {
-  console.log(`YouTube AI Summary: Starting extraction for ${aiProviderKey}`);
+  debugLog(`Starting extraction for ${aiProviderKey}`);
   showLoadingIndicator();
   
   try {
-    // For both regular videos and shorts
-    const videoTitle = document.querySelector('h1.ytd-watch-metadata title')?.textContent?.trim() || 
-                       document.querySelector('h1.title yt-formatted-string')?.textContent?.trim() ||
-                       document.querySelector('.title.style-scope.ytd-shorts')?.textContent?.trim() ||
-                       document.title.replace(" - YouTube", "").replace(" - YouTube Shorts", ""); // Fallback
-                       
-    const videoUrl = window.location.href;
+    // Enhanced video title extraction with multiple fallbacks
+    let videoTitle = null;
     
-    console.log("YouTube AI Summary: Extracting transcript...");
+    // Try multiple selectors for video title (YouTube keeps changing these)
+    const titleSelectors = [
+      'h1.ytd-watch-metadata title',
+      'h1.title yt-formatted-string',
+      '.title.style-scope.ytd-shorts',
+      'h1.ytd-video-primary-info-renderer',
+      '.ytd-video-primary-info-renderer h1',
+      'h1[class*="title"]',
+      '.watch-title',
+      '#title h1',
+      '.ytd-shorts-video-title'
+    ];
+    
+    for (const selector of titleSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        videoTitle = element.textContent?.trim() || element.innerText?.trim();
+        if (videoTitle) {
+          debugLog(`Found video title using selector: ${selector}`, { title: videoTitle });
+          break;
+        }
+      }
+    }
+    
+    // Fallback to document title
+    if (!videoTitle) {
+      videoTitle = document.title
+        .replace(" - YouTube", "")
+        .replace(" - YouTube Shorts", "")
+        .replace(" | YouTube", "")
+        .trim();
+      debugLog("Using document title as fallback", { title: videoTitle });
+    }
+    
+    const videoUrl = window.location.href;
+    const videoId = getVideoIdFromUrl();
+    
+    debugLog("Video info extracted", { 
+      title: videoTitle, 
+      url: videoUrl, 
+      videoId: videoId 
+    });
+    
+    debugLog("Extracting transcript...");
     const transcript = await extractTranscript();
     
     if (!transcript || transcript.length < 50) { // Check for meaningful transcript
-      console.error("YouTube AI Summary: Failed to extract a meaningful transcript.", transcript);
+      debugLog("Failed to extract meaningful transcript", { 
+        transcriptLength: transcript?.length || 0,
+        transcript: transcript?.substring(0, 100) + '...' 
+      });
       throw new Error("Couldn't extract transcript or transcript too short. Make sure this video has captions available.");
     }
-    console.log(`YouTube AI Summary: Transcript extracted (length: ${transcript.length})`);
+    
+    debugLog(`Transcript extracted successfully`, { length: transcript.length });
     
     const prompt = generateSummaryPrompt(transcript, videoTitle, videoUrl);
     const provider = AI_PROVIDERS[aiProviderKey];
     
-    if (!provider) throw new Error("Invalid AI provider key");
+    if (!provider) {
+      debugLog("Invalid AI provider key", { aiProviderKey });
+      throw new Error("Invalid AI provider key");
+    }
+    
+    debugLog("Generated prompt", { 
+      promptLength: prompt.length,
+      provider: provider.name,
+      autoPaste: appSettings.autoPaste 
+    });
     
     // If auto-paste is enabled, store transcript for the AI site to retrieve
     if (appSettings.autoPaste) {
-      await chrome.runtime.sendMessage({
-        action: 'storeTranscript',
-        transcript: prompt,
-        aiProvider: aiProviderKey
-      });
+      try {
+        await chrome.runtime.sendMessage({
+          action: 'storeTranscript',
+          transcript: prompt,
+          aiProvider: aiProviderKey
+        });
+        debugLog("Transcript stored for auto-paste");
+      } catch (error) {
+        debugLog("Failed to store transcript for auto-paste", error.message);
+        // Continue anyway, clipboard copy will still work
+      }
     }
     
+    // Open AI provider URL
+    debugLog("Opening AI provider", { url: provider.url });
     window.open(provider.url, '_blank');
     
     // Always copy to clipboard as a fallback
-    await navigator.clipboard.writeText(prompt);
+    try {
+      await navigator.clipboard.writeText(prompt);
+      debugLog("Prompt copied to clipboard");
+    } catch (clipboardError) {
+      debugLog("Failed to copy to clipboard", clipboardError.message);
+      // Try fallback clipboard method
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = prompt;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        debugLog("Prompt copied to clipboard using fallback method");
+      } catch (fallbackError) {
+        debugLog("Fallback clipboard method also failed", fallbackError.message);
+      }
+    }
     
     hideLoadingIndicator();
     showNotification(
@@ -314,8 +428,16 @@ async function extractAndSummarize(aiProviderKey) {
     
   } catch (error) {
     hideLoadingIndicator();
+    debugLog("Error in extractAndSummarize", error);
     console.error("YouTube AI Summary: Error in extractAndSummarize:", error);
-    showNotification("Error: " + error.message, "error");
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message;
+    if (error.message.includes('transcript')) {
+      errorMessage += "\n\nTroubleshooting tips:\n• Make sure the video has captions/subtitles\n• Try refreshing the page\n• Check if the video is age-restricted or private";
+    }
+    
+    showNotification("Error: " + errorMessage, "error");
   }
 }
 
@@ -370,38 +492,169 @@ function getVideoIdFromUrl() {
   return url.searchParams.get('v');
 }
 
-// Extract YouTube player response data
+// Extract YouTube player response data with enhanced methods
 function getYoutubePlayerData() {
   try {
-    // Try different methods to get player data
+    debugLog("Attempting to extract YouTube player data");
+    
     // Method 1: From ytInitialPlayerResponse in window
     if (window.ytInitialPlayerResponse) {
+      debugLog("Found ytInitialPlayerResponse in window");
       return window.ytInitialPlayerResponse;
     }
     
-    // Method 2: From script tags
+    // Method 2: From script tags (multiple patterns)
+    const scriptPatterns = [
+      /ytInitialPlayerResponse\s*=\s*({.+?});/,
+      /var\s+ytInitialPlayerResponse\s*=\s*({.+?});/,
+      /"ytInitialPlayerResponse":\s*({.+?}),/,
+      /ytInitialPlayerResponse":\s*({.+?})(?:,|\})/
+    ];
+    
     for (const script of document.querySelectorAll('script')) {
       const text = script.textContent;
       if (text && text.includes('ytInitialPlayerResponse')) {
-        const match = text.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
-        if (match && match[1]) {
-          try {
-            return JSON.parse(match[1]);
-          } catch (e) {
-            console.warn('Failed to parse ytInitialPlayerResponse from script');
+        for (const pattern of scriptPatterns) {
+          const match = text.match(pattern);
+          if (match && match[1]) {
+            try {
+              debugLog("Found ytInitialPlayerResponse in script tag");
+              return JSON.parse(match[1]);
+            } catch (e) {
+              debugLog('Failed to parse ytInitialPlayerResponse from script', e.message);
+            }
           }
         }
       }
     }
     
-    // Method 3: From window.ytplayer
+    // Method 3: From window.ytplayer (legacy)
     if (window.ytplayer && window.ytplayer.config) {
-      return window.ytplayer.config.args.player_response;
+      debugLog("Found ytplayer config");
+      const playerResponse = window.ytplayer.config.args.player_response;
+      if (typeof playerResponse === 'string') {
+        try {
+          return JSON.parse(playerResponse);
+        } catch (e) {
+          debugLog('Failed to parse ytplayer config', e.message);
+        }
+      }
+      return playerResponse;
     }
     
+    // Method 4: Try to get from YouTube's internal API
+    if (window.yt && window.yt.config_ && window.yt.config_.EXPERIMENT_FLAGS) {
+      debugLog("Attempting to get player data from yt.config_");
+      // This is a more advanced method that might work with newer YouTube versions
+    }
+    
+    debugLog("No player data found using any method");
     return null;
   } catch (error) {
+    debugLog('Error extracting player data', error.message);
     console.error('Error extracting player data:', error);
+    return null;
+  }
+}
+
+// Clean and optimize transcript text for LLMs
+function cleanTranscriptText(transcript) {
+  let cleaned = transcript
+    // Remove standalone timestamps like "0:10" or "1:23:45"
+    .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '')
+    // Remove timestamps that might appear in brackets like [00:15]
+    .replace(/\[\d{1,2}:\d{2}(:\d{2})?\]/g, '')
+    // Remove speaker labels like "Speaker:" or "John:"
+    .replace(/\b[A-Z][a-z]+\s*:\s*/g, '')
+    // Remove repeated filler words and phrases
+    .replace(/\b(um|uh|ah|like|you know|so|well)\b/gi, '')
+    // Remove excessive punctuation
+    .replace(/[\.]{2,}/g, '.')
+    .replace(/[,]{2,}/g, ',')
+    // Clean up spacing around punctuation
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .replace(/([,.!?;:])\s+/g, '$1 ')
+    // Replace multiple spaces with single space
+    .replace(/\s+/g, ' ')
+    // Remove leading/trailing whitespace
+    .trim();
+  
+  // Remove duplicate consecutive phrases (common in auto-generated transcripts)
+  const words = cleaned.split(' ');
+  const deduplicated = [];
+  let lastPhrase = '';
+  
+  for (let i = 0; i < words.length; i++) {
+    // Check for 3-word phrases to detect duplicates
+    const currentPhrase = words.slice(i, i + 3).join(' ').toLowerCase();
+    
+    if (currentPhrase !== lastPhrase || currentPhrase.length < 6) {
+      deduplicated.push(words[i]);
+      if (currentPhrase.length >= 6) {
+        lastPhrase = currentPhrase;
+      }
+    } else {
+      // Skip duplicate phrase, but advance the index
+      i += 2; // Skip next 2 words as they're part of the duplicate phrase
+    }
+  }
+  
+  cleaned = deduplicated.join(' ');
+  
+  // Just log the length for debugging, but don't truncate
+  debugLog(`Final transcript length: ${cleaned.length} characters`);
+  
+  return cleaned;
+}
+
+// Extract transcript directly from page data (workaround for YouTube blocking API calls)
+async function extractTranscriptFromPageData(videoId) {
+  debugLog("Attempting direct transcript extraction from page data");
+  
+  try {
+    // Check if transcript panel is available
+    const transcriptButton = document.querySelector('button[aria-label*="transcript"], button[aria-label*="Transcript"]');
+    if (transcriptButton) {
+      debugLog("Found transcript button, attempting to click it");
+      transcriptButton.click();
+      
+      // Wait for transcript panel to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Try to find transcript text
+      const transcriptSelectors = [
+        '[data-testid="transcript-segment"]',
+        '.ytd-transcript-segment-renderer',
+        '.segment-text',
+        '#transcript [role="button"]',
+        'ytd-transcript-segment-renderer .segment-text'
+      ];
+      
+      for (const selector of transcriptSelectors) {
+        const segments = document.querySelectorAll(selector);
+        if (segments.length > 0) {
+          debugLog(`Found transcript segments using selector: ${selector}`, { count: segments.length });
+          const transcript = Array.from(segments)
+            .map(seg => seg.textContent?.trim())
+            .filter(text => text && text.length > 0)
+            .join(' ')
+            .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+            .replace(/\n+/g, ' ')  // Replace newlines with spaces
+            .replace(/\t+/g, ' ')  // Replace tabs with spaces
+            .trim();
+          
+          if (transcript.length > 50) {
+            debugLog("Successfully extracted transcript from DOM", { length: transcript.length });
+            return cleanTranscriptText(transcript);
+          }
+        }
+      }
+    }
+    
+    debugLog("Could not extract transcript from page data");
+    return null;
+  } catch (error) {
+    debugLog("Error extracting transcript from page data", error.message);
     return null;
   }
 }
@@ -409,8 +662,21 @@ function getYoutubePlayerData() {
 // Ask background script to fetch transcript
 function fetchTranscriptFromBackground(videoId) {
   return new Promise((resolve, reject) => {
+    debugLog("Fetching transcript from background", { videoId });
+    
     // Get YouTube player data
     const playerResponse = getYoutubePlayerData();
+    
+    if (!playerResponse) {
+      debugLog("No player response data available");
+      reject(new Error('No player response data available. Try refreshing the page.'));
+      return;
+    }
+    
+    debugLog("Sending transcript request to background", { 
+      videoId, 
+      hasPlayerResponse: !!playerResponse 
+    });
     
     chrome.runtime.sendMessage(
       { 
@@ -420,14 +686,20 @@ function fetchTranscriptFromBackground(videoId) {
       },
       response => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError.message);
+          debugLog("Chrome runtime error", chrome.runtime.lastError.message);
+          reject(new Error(chrome.runtime.lastError.message));
           return;
         }
         
         if (response && response.transcript) {
+          debugLog("Transcript received from background", { 
+            length: response.transcript.length 
+          });
           resolve(response.transcript);
         } else {
-          reject(response?.error || 'Failed to fetch transcript');
+          const errorMsg = response?.error || 'Failed to fetch transcript from background';
+          debugLog("Background transcript fetch failed", errorMsg);
+          reject(new Error(errorMsg));
         }
       }
     );
@@ -437,15 +709,47 @@ function fetchTranscriptFromBackground(videoId) {
 // Main transcript extraction function
 async function extractTranscript() {
   const videoId = getVideoIdFromUrl();
-  if (!videoId) return null;
   
+  debugLog("Starting transcript extraction", { videoId });
+  
+  if (!videoId) {
+    debugLog("No video ID found");
+    return null;
+  }
+  
+  // First try direct page data extraction (workaround for YouTube API blocking)
+  try {
+    debugLog("Trying direct page data extraction first");
+    const directTranscript = await extractTranscriptFromPageData(videoId);
+    if (directTranscript && directTranscript.length > 50) {
+      debugLog("Direct extraction successful", { 
+        length: directTranscript.length,
+        preview: directTranscript.substring(0, 100) + '...'
+      });
+      return directTranscript;
+    }
+  } catch (error) {
+    debugLog("Direct extraction failed", error.message);
+  }
+  
+  // Fallback to background script method
   try {
     const transcript = await fetchTranscriptFromBackground(videoId);
+    
     if (transcript && transcript.length > 50) {
-      return transcript;
+      debugLog("Background extraction successful", { 
+        length: transcript.length,
+        preview: transcript.substring(0, 100) + '...'
+      });
+      return cleanTranscriptText(transcript);
+    } else {
+      debugLog("Transcript too short or empty", { 
+        length: transcript?.length || 0 
+      });
+      return null;
     }
-    return null;
   } catch (error) {
+    debugLog("Error in extractTranscript", error.message);
     console.error('Error in extractTranscript:', error);
     return null;
   }
